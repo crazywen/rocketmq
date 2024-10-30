@@ -24,20 +24,21 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.org.slf4j.Logger;
 
 public class StatsItemSet {
     private final ConcurrentMap<String/* key */, StatsItem> statsItemTable =
-        new ConcurrentHashMap<String, StatsItem>(128);
+        new ConcurrentHashMap<>(128);
 
     private final String statsName;
     private final ScheduledExecutorService scheduledExecutorService;
-    private final InternalLogger log;
 
-    public StatsItemSet(String statsName, ScheduledExecutorService scheduledExecutorService, InternalLogger log) {
+    private final Logger logger;
+
+    public StatsItemSet(String statsName, ScheduledExecutorService scheduledExecutorService, Logger logger) {
+        this.logger = logger;
         this.statsName = statsName;
         this.scheduledExecutorService = scheduledExecutorService;
-        this.log = log;
         this.init();
     }
 
@@ -154,14 +155,14 @@ public class StatsItemSet {
 
     public void addValue(final String statsKey, final int incValue, final int incTimes) {
         StatsItem statsItem = this.getAndCreateStatsItem(statsKey);
-        statsItem.getValue().addAndGet(incValue);
-        statsItem.getTimes().addAndGet(incTimes);
+        statsItem.getValue().add(incValue);
+        statsItem.getTimes().add(incTimes);
     }
 
     public void addRTValue(final String statsKey, final int incValue, final int incTimes) {
         StatsItem statsItem = this.getAndCreateRTStatsItem(statsKey);
-        statsItem.getValue().addAndGet(incValue);
-        statsItem.getTimes().addAndGet(incTimes);
+        statsItem.getValue().add(incValue);
+        statsItem.getTimes().add(incTimes);
     }
 
     public void delValue(final String statsKey) {
@@ -213,9 +214,9 @@ public class StatsItemSet {
         StatsItem statsItem = this.statsItemTable.get(statsKey);
         if (null == statsItem) {
             if (rtItem) {
-                statsItem = new RTStatsItem(this.statsName, statsKey, this.scheduledExecutorService, this.log);
+                statsItem = new RTStatsItem(this.statsName, statsKey, this.scheduledExecutorService, logger);
             } else {
-                statsItem = new StatsItem(this.statsName, statsKey, this.scheduledExecutorService, this.log);
+                statsItem = new StatsItem(this.statsName, statsKey, this.scheduledExecutorService, logger);
             }
             StatsItem prev = this.statsItemTable.putIfAbsent(statsKey, statsItem);
 

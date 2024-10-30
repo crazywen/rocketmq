@@ -20,33 +20,33 @@ package org.apache.rocketmq.common.stats;
 import java.util.LinkedList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
+
 import org.apache.rocketmq.common.UtilAll;
-import org.apache.rocketmq.logging.InternalLogger;
+import org.apache.rocketmq.logging.org.slf4j.Logger;
 
 public class StatsItem {
+    private final LongAdder value = new LongAdder();
 
-    private final AtomicLong value = new AtomicLong(0);
+    private final LongAdder times = new LongAdder();
 
-    private final AtomicLong times = new AtomicLong(0);
+    private final LinkedList<CallSnapshot> csListMinute = new LinkedList<>();
 
-    private final LinkedList<CallSnapshot> csListMinute = new LinkedList<CallSnapshot>();
+    private final LinkedList<CallSnapshot> csListHour = new LinkedList<>();
 
-    private final LinkedList<CallSnapshot> csListHour = new LinkedList<CallSnapshot>();
-
-    private final LinkedList<CallSnapshot> csListDay = new LinkedList<CallSnapshot>();
+    private final LinkedList<CallSnapshot> csListDay = new LinkedList<>();
 
     private final String statsName;
     private final String statsKey;
     private final ScheduledExecutorService scheduledExecutorService;
-    private final InternalLogger log;
 
-    public StatsItem(String statsName, String statsKey, ScheduledExecutorService scheduledExecutorService,
-        InternalLogger log) {
+    private final Logger logger;
+
+    public StatsItem(String statsName, String statsKey, ScheduledExecutorService scheduledExecutorService, Logger logger) {
         this.statsName = statsName;
         this.statsKey = statsKey;
         this.scheduledExecutorService = scheduledExecutorService;
-        this.log = log;
+        this.logger = logger;
     }
 
     private static StatsSnapshot computeStatsData(final LinkedList<CallSnapshot> csList) {
@@ -157,8 +157,8 @@ public class StatsItem {
             if (this.csListMinute.size() == 0) {
                 this.csListMinute.add(new CallSnapshot(System.currentTimeMillis() - 10 * 1000, 0, 0));
             }
-            this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
+            this.csListMinute.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
+                .sum()));
             if (this.csListMinute.size() > 7) {
                 this.csListMinute.removeFirst();
             }
@@ -170,8 +170,8 @@ public class StatsItem {
             if (this.csListHour.size() == 0) {
                 this.csListHour.add(new CallSnapshot(System.currentTimeMillis() - 10 * 60 * 1000, 0, 0));
             }
-            this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
+            this.csListHour.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
+                .sum()));
             if (this.csListHour.size() > 7) {
                 this.csListHour.removeFirst();
             }
@@ -183,8 +183,8 @@ public class StatsItem {
             if (this.csListDay.size() == 0) {
                 this.csListDay.add(new CallSnapshot(System.currentTimeMillis() - 1 * 60 * 60 * 1000, 0, 0));
             }
-            this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.get(), this.value
-                .get()));
+            this.csListDay.add(new CallSnapshot(System.currentTimeMillis(), this.times.sum(), this.value
+                .sum()));
             if (this.csListDay.size() > 25) {
                 this.csListDay.removeFirst();
             }
@@ -193,18 +193,18 @@ public class StatsItem {
 
     public void printAtMinutes() {
         StatsSnapshot ss = computeStatsData(this.csListMinute);
-        log.info(String.format("[%s] [%s] Stats In One Minute, ", this.statsName, this.statsKey) + statPrintDetail(ss));
+        logger.info(String.format("[%s] [%s] Stats In One Minute, ", this.statsName, this.statsKey) + statPrintDetail(ss));
     }
 
     public void printAtHour() {
         StatsSnapshot ss = computeStatsData(this.csListHour);
-        log.info(String.format("[%s] [%s] Stats In One Hour, ", this.statsName, this.statsKey) + statPrintDetail(ss));
+        logger.info(String.format("[%s] [%s] Stats In One Hour, ", this.statsName, this.statsKey) + statPrintDetail(ss));
 
     }
 
     public void printAtDay() {
         StatsSnapshot ss = computeStatsData(this.csListDay);
-        log.info(String.format("[%s] [%s] Stats In One Day, ", this.statsName, this.statsKey) + statPrintDetail(ss));
+        logger.info(String.format("[%s] [%s] Stats In One Day, ", this.statsName, this.statsKey) + statPrintDetail(ss));
     }
 
     protected String statPrintDetail(StatsSnapshot ss) {
@@ -214,7 +214,7 @@ public class StatsItem {
                 ss.getAvgpt());
     }
 
-    public AtomicLong getValue() {
+    public LongAdder getValue() {
         return value;
     }
 
@@ -226,7 +226,7 @@ public class StatsItem {
         return statsName;
     }
 
-    public AtomicLong getTimes() {
+    public LongAdder getTimes() {
         return times;
     }
 }
